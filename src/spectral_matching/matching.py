@@ -133,7 +133,7 @@ def response_spectrum(
     solver = None
 ) -> np.ndarray:
     """
-    Compute response spectrum (Sa) using a specified SDOF solver.
+    Compute response spectrum using a specified SDOF solver.
 
     Parameters
     ----------
@@ -142,7 +142,7 @@ def response_spectrum(
     time_step : float
         Time step [s]
     periods : np.ndarray
-        Array of periods [s] for which to compute Sa
+        Array of periods [s] for which to compute spectrum
     damping : float, optional
         Damping ratio (default: DAMPING from constants)
     solver : callable, optional

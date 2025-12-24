@@ -78,13 +78,13 @@ from spectral_matching import (
 
 # Load data
 time, acc, dt = load_acceleration_record("data/record.dat.txt")
-periods, Se_target = load_target_spectrum("data/target.csv")
+periods, target_spectrum = load_target_spectrum("data/target.csv")
 
 # Match spectrum
-acc_matched = iterative_fft_match(acc, dt, periods, Se_target)
+acc_matched = iterative_fft_match(acc, dt, periods, target_spectrum)
 
 # Compute response spectrum
-Sa = response_spectrum(acc_matched, dt, periods)
+spectrum = response_spectrum(acc_matched, dt, periods)
 ```
 
 ## Configuration
