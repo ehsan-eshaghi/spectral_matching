@@ -173,7 +173,8 @@ def tapered_cosine_wavelet(
     target_time: float,
     frequency: float,
     time_step: float,
-    damping_ratio: float = DAMPING
+    damping_ratio: float = DAMPING,
+    solver = None
 ) -> Tuple[np.ndarray, float, float]:
     """
     Generate a tapered cosine wavelet with phase alignment.
@@ -190,6 +191,11 @@ def tapered_cosine_wavelet(
         Time step [s]
     damping_ratio : float, optional
         Damping ratio (default: DAMPING)
+    solver : callable, optional
+        SDOF solver function. Must have signature:
+        solver(acceleration, time_step, natural_frequency, damping_ratio) -> np.ndarray
+        returning absolute_acceleration.
+        If None, uses piecewise_exact_solver from solvers module (default: None)
 
     Returns
     -------
@@ -200,6 +206,9 @@ def tapered_cosine_wavelet(
     response_sign : float
         Sign of maximum response (+1 or -1)
     """
+    if solver is None:
+        solver = piecewise_exact_solver
+    
     angular_frequency = 2 * pi * frequency
     damped_angular_frequency = angular_frequency * sqrt(max(0.0, 1 - damping_ratio**2))
     gamma = 1.178 * frequency ** (-0.93)
@@ -209,7 +218,7 @@ def tapered_cosine_wavelet(
     wavelet_temp = np.cos(damped_angular_frequency * time_offset) * np.exp(- (time_offset / gamma) ** 2)
 
     natural_frequency = angular_frequency
-    absolute_acceleration_temp = piecewise_exact_solver(wavelet_temp, time_step, natural_frequency, damping_ratio)
+    absolute_acceleration_temp = solver(wavelet_temp, time_step, natural_frequency, damping_ratio)
 
     index_wavelet = np.argmax(np.abs(absolute_acceleration_temp))
     time_wavelet = time[index_wavelet]
@@ -219,7 +228,7 @@ def tapered_cosine_wavelet(
     time_offset = time - target_time + time_delta
     wavelet = np.cos(damped_angular_frequency * time_offset) * np.exp(- (time_offset / gamma) ** 2)
 
-    absolute_acceleration = piecewise_exact_solver(wavelet, time_step, natural_frequency, damping_ratio)
+    absolute_acceleration = solver(wavelet, time_step, natural_frequency, damping_ratio)
     index_max = np.argmax(np.abs(absolute_acceleration))
     max_response_amplitude = np.abs(absolute_acceleration[index_max])
     response_sign = np.sign(absolute_acceleration[index_max])
@@ -238,7 +247,8 @@ def greedy_wavelet_match(
     tolerance: float = GWM_TOL,
     relaxation_factor: float = GWM_GAMMA,
     arias_intensity_max_multiplier: float = GWM_AI_MULTIPLIER,
-    period_band: list = TARGET_PERIOD_BAND
+    period_band: list = TARGET_PERIOD_BAND,
+    solver = None
 ) -> np.ndarray:
     """
     Greedy Wavelet Matching (GWM) algorithm for spectral matching.
@@ -270,12 +280,20 @@ def greedy_wavelet_match(
         Maximum AI multiplier relative to initial (default: GWM_AI_MULTIPLIER)
     period_band : list, optional
         Target period band [T_min, T_max] (default: TARGET_PERIOD_BAND)
+    solver : callable, optional
+        SDOF solver function. Must have signature:
+        solver(acceleration, time_step, natural_frequency, damping_ratio) -> np.ndarray
+        returning absolute_acceleration.
+        If None, uses piecewise_exact_solver from solvers module (default: None)
 
     Returns
     -------
     np.ndarray
         Matched acceleration time history [m/s^2]
     """
+    if solver is None:
+        solver = piecewise_exact_solver
+    
     acceleration = initial_acceleration.copy()
     band_mask = (periods >= period_band[0]) & (periods <= period_band[1])
     periods_in_band = periods[band_mask]
@@ -283,7 +301,7 @@ def greedy_wavelet_match(
     arias_intensity_target = arias_intensity(acceleration, time_step) * arias_intensity_max_multiplier
 
     for iteration in range(max_iterations):
-        spectrum = response_spectrum(acceleration, time_step, periods_in_band, damping)
+        spectrum = response_spectrum(acceleration, time_step, periods_in_band, damping, solver=solver)
         mismatches = np.abs(target_spectrum_in_band - spectrum) / (target_spectrum_in_band + NUMERICAL_EPS)
         max_mismatch = np.max(mismatches)
         if max_mismatch < tolerance:
@@ -296,13 +314,15 @@ def greedy_wavelet_match(
         natural_frequency = 2 * pi / period_max
 
         # Place wavelet near a dominant response of current signal
-        absolute_acceleration = piecewise_exact_solver(acceleration, time_step, natural_frequency, damping)
+        absolute_acceleration = solver(acceleration, time_step, natural_frequency, damping)
         peak_index = np.argmax(np.abs(absolute_acceleration))
         target_time = time[peak_index]
         response_sign = np.sign(absolute_acceleration[peak_index])
         response_delta_max = (target_spectrum_in_band[index_max] - spectrum[index_max]) * response_sign
 
-        wavelet, max_response_amplitude, wavelet_response_sign = tapered_cosine_wavelet(time, target_time, frequency_max, time_step, damping_ratio=damping)
+        wavelet, max_response_amplitude, wavelet_response_sign = tapered_cosine_wavelet(
+            time, target_time, frequency_max, time_step, damping_ratio=damping, solver=solver
+        )
         wavelet_amplitude = relaxation_factor * response_delta_max * (wavelet_response_sign / (max_response_amplitude + NUMERICAL_EPS))
 
         # Constrain wavelet_amplitude with an AI cap
