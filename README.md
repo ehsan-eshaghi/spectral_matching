@@ -124,6 +124,23 @@ Adjusts the frequency content of the acceleration record iteratively to match th
 
 Adds tapered cosine wavelets to the acceleration record to iteratively improve the match. Constrains the Arias Intensity to prevent unrealistic amplification.
 
+## Method Comparison
+
+The following table compares the performance of different matching methods on the El Centro NS record (target period band: 0.20-1.00s, damping: 5%):
+
+| Method | Match % | Arias Intensity (AI) [m/s] | Cumulative Absolute Velocity (CAV) [m/s] |
+|--------|---------|----------------------------|------------------------------------------|
+| Original | - | 1.8230 | 14.3076 |
+| Scaled | 85.2% | 2.2418 | 15.8658 |
+| **FFT Matching** | **98.8%** | 3.2071 | 20.6262 |
+| **GWM Matching** | **97.5%** | 2.1369 | 15.6122 |
+
+### Key Observations
+
+- **FFT Matching** achieves the highest spectral match (98.8%) but significantly increases both AI and CAV metrics, indicating more intense ground motion.
+- **GWM Matching** achieves a slightly lower match (97.5%) but preserves intensity metrics closer to the scaled record, making it more suitable when maintaining realistic ground motion characteristics is important.
+- Both methods show substantial improvement over the scaled record (85.2% match), demonstrating their effectiveness in spectral matching.
+
 ## Dependencies
 
 - numpy >= 1.20.0
