@@ -47,10 +47,10 @@ def main():
     # Load and preprocess acceleration record
     # ============================================================
     print("Loading acceleration record...")
-    time, acc, dt = load_acceleration_record(str(ACC_FILENAME))
+    time, acceleration, time_step = load_acceleration_record(str(ACC_FILENAME))
     
     # Baseline correction (quadratic detrend)
-    acc = baseline_correction(acc, time, order=2)
+    acceleration = baseline_correction(acceleration, time, order=2)
     
     # Generate run tag from filename
     run_tag = ACC_FILENAME.stem
@@ -58,7 +58,7 @@ def main():
         run_tag = run_tag[:-4]
     
     # Initialize figure saver
-    fig_saver = FigureSaver(
+    figure_saver = FigureSaver(
         output_dir=str(FIGURES_DIR),
         run_tag=run_tag,
         period_band=TARGET_PERIOD_BAND,
@@ -70,55 +70,55 @@ def main():
     # ============================================================
     print("Loading target spectrum...")
     periods = np.linspace(PERIOD_MIN, PERIOD_MAX, NUM_PERIODS)
-    periods, Se_target = load_target_spectrum(str(UHS_FILENAME), periods)
+    periods, target_spectrum = load_target_spectrum(str(UHS_FILENAME), periods)
     
     # ============================================================
     # Scale record to target band
     # ============================================================
     print("Scaling record to target band...")
-    acc_scaled, scale_factor = scale_to_target_band(
-        acc, dt, periods, Se_target, band=TARGET_PERIOD_BAND, damping=DAMPING
+    acceleration_scaled, scale_factor = scale_to_target_band(
+        acceleration, time_step, periods, target_spectrum, band=TARGET_PERIOD_BAND, damping=DAMPING
     )
     
     # Compute original and scaled spectra
-    Sa_orig = response_spectrum(acc, dt, periods, damping=DAMPING)
-    Sa_scaled = response_spectrum(acc_scaled, dt, periods, damping=DAMPING)
+    spectrum_original = response_spectrum(acceleration, time_step, periods, damping=DAMPING)
+    spectrum_scaled = response_spectrum(acceleration_scaled, time_step, periods, damping=DAMPING)
     
     # Baseline matching statistics
-    pct_scaled = compute_match_statistics(
-        Sa_scaled, Se_target, periods, band=TARGET_PERIOD_BAND
+    match_percentage_scaled = compute_match_statistics(
+        spectrum_scaled, target_spectrum, periods, band=TARGET_PERIOD_BAND
     )
-    print(f"Match % after scaling: {pct_scaled:.1f}%")
+    print(f"Match % after scaling: {match_percentage_scaled:.1f}%")
     
     # ============================================================
     # Iterative FFT Matching
     # ============================================================
     print("\nPerforming iterative FFT matching...")
-    acc_matched_fft = iterative_fft_match(
-        acc_scaled, dt, periods, Se_target, damping=DAMPING
+    acceleration_matched_fft = iterative_fft_match(
+        acceleration_scaled, time_step, periods, target_spectrum, damping=DAMPING
     )
-    Sa_matched_fft = response_spectrum(acc_matched_fft, dt, periods, damping=DAMPING)
+    spectrum_matched_fft = response_spectrum(acceleration_matched_fft, time_step, periods, damping=DAMPING)
     
     # Matching statistics
-    pct_matched_fft = compute_match_statistics(
-        Sa_matched_fft, Se_target, periods, band=TARGET_PERIOD_BAND
+    match_percentage_fft = compute_match_statistics(
+        spectrum_matched_fft, target_spectrum, periods, band=TARGET_PERIOD_BAND
     )
-    print(f"Match % after FFT matching: {pct_matched_fft:.1f}%")
+    print(f"Match % after FFT matching: {match_percentage_fft:.1f}%")
     
     # ============================================================
     # Greedy Wavelet Matching
     # ============================================================
     print("\nPerforming Greedy Wavelet Matching...")
-    acc_matched_gwm = greedy_wavelet_match(
-        acc_scaled, dt, time, periods, Se_target, damping=DAMPING
+    acceleration_matched_gwm = greedy_wavelet_match(
+        acceleration_scaled, time_step, time, periods, target_spectrum, damping=DAMPING
     )
-    Sa_matched_gwm = response_spectrum(acc_matched_gwm, dt, periods, damping=DAMPING)
+    spectrum_matched_gwm = response_spectrum(acceleration_matched_gwm, time_step, periods, damping=DAMPING)
     
     # Matching statistics
-    pct_matched_gwm = compute_match_statistics(
-        Sa_matched_gwm, Se_target, periods, band=TARGET_PERIOD_BAND
+    match_percentage_gwm = compute_match_statistics(
+        spectrum_matched_gwm, target_spectrum, periods, band=TARGET_PERIOD_BAND
     )
-    print(f"Match % after GWM matching: {pct_matched_gwm:.1f}%")
+    print(f"Match % after GWM matching: {match_percentage_gwm:.1f}%")
     
     # ============================================================
     # Compute and print metrics
@@ -128,32 +128,32 @@ def main():
     print("="*60)
     
     # Original metrics
-    ai_orig = arias_intensity(acc, dt)
-    cav_orig = cumulative_absolute_velocity(acc, dt)
+    arias_intensity_original = arias_intensity(acceleration, time_step)
+    cumulative_absolute_velocity_original = cumulative_absolute_velocity(acceleration, time_step)
     
     # Scaled metrics
-    ai_scaled = arias_intensity(acc_scaled, dt)
-    cav_scaled = cumulative_absolute_velocity(acc_scaled, dt)
+    arias_intensity_scaled = arias_intensity(acceleration_scaled, time_step)
+    cumulative_absolute_velocity_scaled = cumulative_absolute_velocity(acceleration_scaled, time_step)
     
     # FFT matched metrics
-    ai_matched_fft = arias_intensity(acc_matched_fft, dt)
-    cav_matched_fft = cumulative_absolute_velocity(acc_matched_fft, dt)
+    arias_intensity_matched_fft = arias_intensity(acceleration_matched_fft, time_step)
+    cumulative_absolute_velocity_matched_fft = cumulative_absolute_velocity(acceleration_matched_fft, time_step)
     
     # GWM matched metrics
-    ai_matched_gwm = arias_intensity(acc_matched_gwm, dt)
-    cav_matched_gwm = cumulative_absolute_velocity(acc_matched_gwm, dt)
+    arias_intensity_matched_gwm = arias_intensity(acceleration_matched_gwm, time_step)
+    cumulative_absolute_velocity_matched_gwm = cumulative_absolute_velocity(acceleration_matched_gwm, time_step)
     
     print(f"\nArias Intensity (AI) [m/s]:")
-    print(f"  Original: {ai_orig:.4f}")
-    print(f"  Scaled:   {ai_scaled:.4f}")
-    print(f"  FFT:      {ai_matched_fft:.4f}")
-    print(f"  GWM:      {ai_matched_gwm:.4f}")
+    print(f"  Original: {arias_intensity_original:.4f}")
+    print(f"  Scaled:   {arias_intensity_scaled:.4f}")
+    print(f"  FFT:      {arias_intensity_matched_fft:.4f}")
+    print(f"  GWM:      {arias_intensity_matched_gwm:.4f}")
     
     print(f"\nCumulative Absolute Velocity (CAV) [m/s]:")
-    print(f"  Original: {cav_orig:.4f}")
-    print(f"  Scaled:   {cav_scaled:.4f}")
-    print(f"  FFT:      {cav_matched_fft:.4f}")
-    print(f"  GWM:      {cav_matched_gwm:.4f}")
+    print(f"  Original: {cumulative_absolute_velocity_original:.4f}")
+    print(f"  Scaled:   {cumulative_absolute_velocity_scaled:.4f}")
+    print(f"  FFT:      {cumulative_absolute_velocity_matched_fft:.4f}")
+    print(f"  GWM:      {cumulative_absolute_velocity_matched_gwm:.4f}")
     
     # ============================================================
     # Plotting - FFT Results
@@ -161,31 +161,31 @@ def main():
     print("\nGenerating plots for FFT matching...")
     
     # Spectra plot
-    fig = plot_spectra(
-        periods, Se_target, Sa_orig,
-        Sa_scaled=Sa_scaled, Sa_matched=Sa_matched_fft, method="FFT"
+    figure = plot_spectra(
+        periods, target_spectrum, spectrum_original,
+        spectrum_scaled=spectrum_scaled, spectrum_matched=spectrum_matched_fft, method="FFT"
     )
-    fig_saver.save("spectra_iterfft")
-    fig.show()
+    figure_saver.save("spectra_iterfft")
+    figure.show()
     
     # Cumulative AI
-    cum_ai_orig = cumulative_metric(acc, dt, 'AI')
-    cum_ai_matched = cumulative_metric(acc_matched_fft, dt, 'AI')
-    fig = plot_cumulative_metric(time, cum_ai_orig, cum_ai_matched, metric='AI')
-    fig_saver.save("cumulative_AI_iterfft")
-    fig.show()
+    cumulative_ai_original = cumulative_metric(acceleration, time_step, 'AI')
+    cumulative_ai_matched = cumulative_metric(acceleration_matched_fft, time_step, 'AI')
+    figure = plot_cumulative_metric(time, cumulative_ai_original, cumulative_ai_matched, metric='AI')
+    figure_saver.save("cumulative_AI_iterfft")
+    figure.show()
     
     # Cumulative CAV
-    cum_cav_orig = cumulative_metric(acc, dt, 'CAV')
-    cum_cav_matched = cumulative_metric(acc_matched_fft, dt, 'CAV')
-    fig = plot_cumulative_metric(time, cum_cav_orig, cum_cav_matched, metric='CAV')
-    fig_saver.save("cumulative_CAV_iterfft")
-    fig.show()
+    cumulative_cav_original = cumulative_metric(acceleration, time_step, 'CAV')
+    cumulative_cav_matched = cumulative_metric(acceleration_matched_fft, time_step, 'CAV')
+    figure = plot_cumulative_metric(time, cumulative_cav_original, cumulative_cav_matched, metric='CAV')
+    figure_saver.save("cumulative_CAV_iterfft")
+    figure.show()
     
     # Time history
-    fig = plot_time_history(time, acc, acc_matched_fft, method="FFT")
-    fig_saver.save("time_history_iterfft")
-    fig.show()
+    figure = plot_time_history(time, acceleration, acceleration_matched_fft, method="FFT")
+    figure_saver.save("time_history_iterfft")
+    figure.show()
     
     # ============================================================
     # Plotting - GWM Results
@@ -193,17 +193,17 @@ def main():
     print("Generating plots for GWM matching...")
     
     # Spectra plot
-    fig = plot_spectra(
-        periods, Se_target, Sa_orig,
-        Sa_scaled=Sa_scaled, Sa_matched=Sa_matched_gwm, method="GWM"
+    figure = plot_spectra(
+        periods, target_spectrum, spectrum_original,
+        spectrum_scaled=spectrum_scaled, spectrum_matched=spectrum_matched_gwm, method="GWM"
     )
-    fig_saver.save("spectra_gwm")
-    fig.show()
+    figure_saver.save("spectra_gwm")
+    figure.show()
     
     # Time history
-    fig = plot_time_history(time, acc, acc_matched_gwm, method="GWM")
-    fig_saver.save("time_history_gwm")
-    fig.show()
+    figure = plot_time_history(time, acceleration, acceleration_matched_gwm, method="GWM")
+    figure_saver.save("time_history_gwm")
+    figure.show()
     
     # ============================================================
     # Save matched records
@@ -214,7 +214,7 @@ def main():
     output_fft = OUTPUT_DIR / f"{run_tag}_matched_iterative.dat.txt"
     save_acceleration_record(
         str(output_fft),
-        time, acc_matched_fft,
+        time, acceleration_matched_fft,
         header="time(s) acc(g) matched FFT"
     )
     print(f"  Saved: {output_fft}")
@@ -223,7 +223,7 @@ def main():
     output_gwm = OUTPUT_DIR / f"{run_tag}_matched_gwm.dat.txt"
     save_acceleration_record(
         str(output_gwm),
-        time, acc_matched_gwm,
+        time, acceleration_matched_gwm,
         header="time(s) acc(g) matched GWM"
     )
     print(f"  Saved: {output_gwm}")

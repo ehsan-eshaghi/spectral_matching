@@ -9,7 +9,7 @@ from typing import Literal
 from .constants import GRAVITY
 
 
-def arias_intensity(acc: np.ndarray, dt: float) -> float:
+def arias_intensity(acceleration: np.ndarray, time_step: float) -> float:
     """
     Compute Arias Intensity (AI).
 
@@ -17,9 +17,9 @@ def arias_intensity(acc: np.ndarray, dt: float) -> float:
 
     Parameters
     ----------
-    acc : np.ndarray
+    acceleration : np.ndarray
         Ground acceleration time history [m/s^2]
-    dt : float
+    time_step : float
         Time step [s]
 
     Returns
@@ -27,10 +27,10 @@ def arias_intensity(acc: np.ndarray, dt: float) -> float:
     float
         Arias Intensity [m/s]
     """
-    return (pi / (2.0 * GRAVITY)) * np.sum(acc ** 2) * dt
+    return (pi / (2.0 * GRAVITY)) * np.sum(acceleration ** 2) * time_step
 
 
-def cumulative_absolute_velocity(acc: np.ndarray, dt: float) -> float:
+def cumulative_absolute_velocity(acceleration: np.ndarray, time_step: float) -> float:
     """
     Compute Cumulative Absolute Velocity (CAV).
 
@@ -38,9 +38,9 @@ def cumulative_absolute_velocity(acc: np.ndarray, dt: float) -> float:
 
     Parameters
     ----------
-    acc : np.ndarray
+    acceleration : np.ndarray
         Ground acceleration time history [m/s^2]
-    dt : float
+    time_step : float
         Time step [s]
 
     Returns
@@ -48,12 +48,12 @@ def cumulative_absolute_velocity(acc: np.ndarray, dt: float) -> float:
     float
         Cumulative Absolute Velocity [m/s]
     """
-    return np.sum(np.abs(acc)) * dt
+    return np.sum(np.abs(acceleration)) * time_step
 
 
 def cumulative_metric(
-    acc: np.ndarray,
-    dt: float,
+    acceleration: np.ndarray,
+    time_step: float,
     metric: Literal['AI', 'CAV'] = 'AI'
 ) -> np.ndarray:
     """
@@ -61,9 +61,9 @@ def cumulative_metric(
 
     Parameters
     ----------
-    acc : np.ndarray
+    acceleration : np.ndarray
         Ground acceleration time history [m/s^2]
-    dt : float
+    time_step : float
         Time step [s]
     metric : {'AI', 'CAV'}, optional
         Metric type to compute (default: 'AI')
@@ -79,8 +79,8 @@ def cumulative_metric(
         If metric is not 'AI' or 'CAV'
     """
     if metric == 'AI':
-        return np.cumsum(acc ** 2) * dt * (pi / (2.0 * GRAVITY))
+        return np.cumsum(acceleration ** 2) * time_step * (pi / (2.0 * GRAVITY))
     if metric == 'CAV':
-        return np.cumsum(np.abs(acc)) * dt
+        return np.cumsum(np.abs(acceleration)) * time_step
     raise ValueError("metric must be 'AI' or 'CAV'")
 

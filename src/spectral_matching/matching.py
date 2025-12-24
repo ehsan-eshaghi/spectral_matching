@@ -18,12 +18,12 @@ from .metrics import arias_intensity
 
 
 def iterative_fft_match(
-    acc_initial: np.ndarray,
-    dt: float,
+    initial_acceleration: np.ndarray,
+    time_step: float,
     periods: np.ndarray,
-    Se_target: np.ndarray,
-    iters: int = FFT_ITERS,
-    T_band: list = TARGET_PERIOD_BAND,
+    target_spectrum: np.ndarray,
+    num_iterations: int = FFT_ITERS,
+    period_band: list = TARGET_PERIOD_BAND,
     smooth_width: int = FFT_SMOOTH_WIDTH,
     ratio_clip_min: float = FFT_RATIO_CLIP_MIN,
     ratio_clip_max: float = FFT_RATIO_CLIP_MAX,
@@ -41,17 +41,17 @@ def iterative_fft_match(
 
     Parameters
     ----------
-    acc_initial : np.ndarray
+    initial_acceleration : np.ndarray
         Initial acceleration time history [m/s^2]
-    dt : float
+    time_step : float
         Time step [s]
     periods : np.ndarray
         Period array [s] for spectrum computation
-    Se_target : np.ndarray
+    target_spectrum : np.ndarray
         Target spectral acceleration [m/s^2] for each period
-    iters : int, optional
+    num_iterations : int, optional
         Number of iterations (default: FFT_ITERS)
-    T_band : list, optional
+    period_band : list, optional
         Target period band [T_min, T_max] in seconds (default: TARGET_PERIOD_BAND)
     smooth_width : int, optional
         Smoothing kernel width for gain function (default: FFT_SMOOTH_WIDTH)
@@ -75,33 +75,33 @@ def iterative_fft_match(
     np.ndarray
         Matched acceleration time history [m/s^2]
     """
-    acc = acc_initial.copy()
-    n = len(acc)
-    N = int(2 ** np.ceil(np.log2(n)))
+    acceleration = initial_acceleration.copy()
+    n = len(acceleration)
+    n_fft = int(2 ** np.ceil(np.log2(n)))
 
     periods = np.asarray(periods)
-    Se_target = np.asarray(Se_target)
-    f_centers = 1.0 / periods
-    freqs = np.fft.rfftfreq(N, dt)
-    f_low, f_high = 1.0 / T_band[1], 1.0 / T_band[0]
+    target_spectrum = np.asarray(target_spectrum)
+    frequency_centers = 1.0 / periods
+    frequencies = np.fft.rfftfreq(n_fft, time_step)
+    frequency_low, frequency_high = 1.0 / period_band[1], 1.0 / period_band[0]
 
-    for _ in range(iters):
-        Sa_current = response_spectrum(acc, dt, periods, damping=damping)
+    for _ in range(num_iterations):
+        spectrum_current = response_spectrum(acceleration, time_step, periods, damping=damping)
         ratio = np.clip(
-            Se_target / (Sa_current + numerical_stability_eps),
+            target_spectrum / (spectrum_current + numerical_stability_eps),
             ratio_clip_min,
             ratio_clip_max
         )
 
         # Map period-domain gains to frequency grid
-        sort_idx = np.argsort(f_centers)
-        gain_interp = np.interp(
-            freqs, f_centers[sort_idx], ratio[sort_idx],
+        sort_index = np.argsort(frequency_centers)
+        gain_interpolated = np.interp(
+            frequencies, frequency_centers[sort_index], ratio[sort_index],
             left=1.0, right=1.0
         )
-        gain = np.ones_like(freqs)
-        mask_band = (freqs >= f_low) & (freqs <= f_high)
-        gain[mask_band] = gain_interp[mask_band]
+        gain = np.ones_like(frequencies)
+        band_mask = (frequencies >= frequency_low) & (frequencies <= frequency_high)
+        gain[band_mask] = gain_interpolated[band_mask]
 
         # Smooth and clip
         if smooth_width > 1:
@@ -116,87 +116,86 @@ def iterative_fft_match(
 
         # Window, FFT, apply gain, IFFT
         window = tukey(n, alpha=tukey_alpha)
-        acc_pad = np.zeros(N)
-        acc_pad[:n] = acc * window
-        A = np.fft.rfft(acc_pad)
-        acc_new = np.fft.irfft(A * gain)[:n]
-        acc = acc_new
+        acceleration_padded = np.zeros(n_fft)
+        acceleration_padded[:n] = acceleration * window
+        fft_coefficients = np.fft.rfft(acceleration_padded)
+        acceleration_new = np.fft.irfft(fft_coefficients * gain)[:n]
+        acceleration = acceleration_new
 
-    return acc
+    return acceleration
 
 
 def tapered_cosine_wavelet(
-    t: np.ndarray,
-    t_i: float,
-    f_i: float,
-    dt: float,
-    beta: float = DAMPING
+    time: np.ndarray,
+    target_time: float,
+    frequency: float,
+    time_step: float,
+    damping_ratio: float = DAMPING
 ) -> Tuple[np.ndarray, float, float]:
     """
     Generate a tapered cosine wavelet with phase alignment.
 
     Parameters
     ----------
-    t : np.ndarray
+    time : np.ndarray
         Time array [s]
-    t_i : float
+    target_time : float
         Target time for peak response [s]
-    f_i : float
+    frequency : float
         Frequency [Hz]
-    dt : float
+    time_step : float
         Time step [s]
-    beta : float, optional
+    damping_ratio : float, optional
         Damping ratio (default: DAMPING)
 
     Returns
     -------
-    w : np.ndarray
+    wavelet : np.ndarray
         Wavelet time history
-    R_w : float
+    max_response_amplitude : float
         Maximum response amplitude
-    P_w : float
+    response_sign : float
         Sign of maximum response (+1 or -1)
     """
-    omega = 2 * pi * f_i
-    omega_prime = omega * sqrt(max(0.0, 1 - beta**2))
-    gamma_i = 1.178 * f_i ** (-0.93)
+    angular_frequency = 2 * pi * frequency
+    damped_angular_frequency = angular_frequency * sqrt(max(0.0, 1 - damping_ratio**2))
+    gamma = 1.178 * frequency ** (-0.93)
 
-    # Build w with zero phase shift, find system response peak time, then align
-    tau = t - t_i
-    w_temp = np.cos(omega_prime * tau) * np.exp(- (tau / gamma_i) ** 2)
+    # Build wavelet with zero phase shift, find system response peak time, then align
+    time_offset = time - target_time
+    wavelet_temp = np.cos(damped_angular_frequency * time_offset) * np.exp(- (time_offset / gamma) ** 2)
 
-    wn = omega
-    xi = beta
-    _, _, _, a_abs_w_temp = piecewise_exact_history(w_temp, dt, wn, xi)
+    natural_frequency = angular_frequency
+    _, _, _, absolute_acceleration_temp = piecewise_exact_history(wavelet_temp, time_step, natural_frequency, damping_ratio)
 
-    idx_w = np.argmax(np.abs(a_abs_w_temp))
-    t_w = t[idx_w]
+    index_wavelet = np.argmax(np.abs(absolute_acceleration_temp))
+    time_wavelet = time[index_wavelet]
 
-    # Recreate with phase shift so response peaks at t_i
-    delta_t = t_w - t_i
-    tau = t - t_i + delta_t
-    w = np.cos(omega_prime * tau) * np.exp(- (tau / gamma_i) ** 2)
+    # Recreate with phase shift so response peaks at target_time
+    time_delta = time_wavelet - target_time
+    time_offset = time - target_time + time_delta
+    wavelet = np.cos(damped_angular_frequency * time_offset) * np.exp(- (time_offset / gamma) ** 2)
 
-    _, _, _, a_abs_w = piecewise_exact_history(w, dt, wn, xi)
-    idx_max = np.argmax(np.abs(a_abs_w))
-    R_w = np.abs(a_abs_w[idx_max])
-    P_w = np.sign(a_abs_w[idx_max])
+    _, _, _, absolute_acceleration = piecewise_exact_history(wavelet, time_step, natural_frequency, damping_ratio)
+    index_max = np.argmax(np.abs(absolute_acceleration))
+    max_response_amplitude = np.abs(absolute_acceleration[index_max])
+    response_sign = np.sign(absolute_acceleration[index_max])
 
-    return w, R_w, P_w
+    return wavelet, max_response_amplitude, response_sign
 
 
 def greedy_wavelet_match(
-    acc_initial: np.ndarray,
-    dt: float,
-    t: np.ndarray,
+    initial_acceleration: np.ndarray,
+    time_step: float,
+    time: np.ndarray,
     periods: np.ndarray,
-    Se_target: np.ndarray,
+    target_spectrum: np.ndarray,
     damping: float = DAMPING,
-    max_iters: int = GWM_ITERS,
-    tol: float = GWM_TOL,
-    gamma_relax: float = GWM_GAMMA,
-    ai_max_multiplier: float = GWM_AI_MULTIPLIER,
-    band: list = TARGET_PERIOD_BAND
+    max_iterations: int = GWM_ITERS,
+    tolerance: float = GWM_TOL,
+    relaxation_factor: float = GWM_GAMMA,
+    arias_intensity_max_multiplier: float = GWM_AI_MULTIPLIER,
+    period_band: list = TARGET_PERIOD_BAND
 ) -> np.ndarray:
     """
     Greedy Wavelet Matching (GWM) algorithm for spectral matching.
@@ -206,27 +205,27 @@ def greedy_wavelet_match(
 
     Parameters
     ----------
-    acc_initial : np.ndarray
+    initial_acceleration : np.ndarray
         Initial acceleration time history [m/s^2]
-    dt : float
+    time_step : float
         Time step [s]
-    t : np.ndarray
+    time : np.ndarray
         Time array [s]
     periods : np.ndarray
         Period array [s] for spectrum computation
-    Se_target : np.ndarray
+    target_spectrum : np.ndarray
         Target spectral acceleration [m/s^2] for each period
     damping : float, optional
         Damping ratio (default: DAMPING)
-    max_iters : int, optional
+    max_iterations : int, optional
         Maximum number of iterations (default: GWM_ITERS)
-    tol : float, optional
+    tolerance : float, optional
         Convergence tolerance (default: GWM_TOL)
-    gamma_relax : float, optional
+    relaxation_factor : float, optional
         Relaxation factor (default: GWM_GAMMA)
-    ai_max_multiplier : float, optional
+    arias_intensity_max_multiplier : float, optional
         Maximum AI multiplier relative to initial (default: GWM_AI_MULTIPLIER)
-    band : list, optional
+    period_band : list, optional
         Target period band [T_min, T_max] (default: TARGET_PERIOD_BAND)
 
     Returns
@@ -234,61 +233,60 @@ def greedy_wavelet_match(
     np.ndarray
         Matched acceleration time history [m/s^2]
     """
-    acc = acc_initial.copy()
-    band_mask_local = (periods >= band[0]) & (periods <= band[1])
-    periods_band = periods[band_mask_local]
-    Se_target_band = Se_target[band_mask_local]
-    ai_target = arias_intensity(acc, dt) * ai_max_multiplier
+    acceleration = initial_acceleration.copy()
+    band_mask = (periods >= period_band[0]) & (periods <= period_band[1])
+    periods_in_band = periods[band_mask]
+    target_spectrum_in_band = target_spectrum[band_mask]
+    arias_intensity_target = arias_intensity(acceleration, time_step) * arias_intensity_max_multiplier
 
-    for it in range(max_iters):
-        Sa = response_spectrum(acc, dt, periods_band, damping)
-        mismatches = np.abs(Se_target_band - Sa) / (Se_target_band + NUMERICAL_EPS)
+    for iteration in range(max_iterations):
+        spectrum = response_spectrum(acceleration, time_step, periods_in_band, damping)
+        mismatches = np.abs(target_spectrum_in_band - spectrum) / (target_spectrum_in_band + NUMERICAL_EPS)
         max_mismatch = np.max(mismatches)
-        if max_mismatch < tol:
-            print(f"Converged after {it} iterations")
+        if max_mismatch < tolerance:
+            print(f"Converged after {iteration} iterations")
             break
 
-        i_max = np.argmax(np.abs(Se_target_band - Sa))
-        T_max = periods_band[i_max]
-        f_max = 1.0 / T_max
-        wn = 2 * pi / T_max
-        xi = damping
+        index_max = np.argmax(np.abs(target_spectrum_in_band - spectrum))
+        period_max = periods_in_band[index_max]
+        frequency_max = 1.0 / period_max
+        natural_frequency = 2 * pi / period_max
 
         # Place wavelet near a dominant response of current signal
-        _, _, _, a_abs = piecewise_exact_history(acc, dt, wn, xi)
-        peak_idx = np.argmax(np.abs(a_abs))
-        t_i = t[peak_idx]
-        P_i = np.sign(a_abs[peak_idx])
-        Delta_R_max = (Se_target_band[i_max] - Sa[i_max]) * P_i
+        _, _, _, absolute_acceleration = piecewise_exact_history(acceleration, time_step, natural_frequency, damping)
+        peak_index = np.argmax(np.abs(absolute_acceleration))
+        target_time = time[peak_index]
+        response_sign = np.sign(absolute_acceleration[peak_index])
+        response_delta_max = (target_spectrum_in_band[index_max] - spectrum[index_max]) * response_sign
 
-        w, R_w, P_w = tapered_cosine_wavelet(t, t_i, f_max, dt, beta=damping)
-        b = gamma_relax * Delta_R_max * (P_w / (R_w + NUMERICAL_EPS))
+        wavelet, max_response_amplitude, wavelet_response_sign = tapered_cosine_wavelet(time, target_time, frequency_max, time_step, damping_ratio=damping)
+        wavelet_amplitude = relaxation_factor * response_delta_max * (wavelet_response_sign / (max_response_amplitude + NUMERICAL_EPS))
 
-        # Constrain b with an AI cap
-        sum_acc2 = np.sum(acc ** 2)
-        sum_2acc_w = np.sum(2 * acc * w)
-        sum_w2 = np.sum(w ** 2)
+        # Constrain wavelet_amplitude with an AI cap
+        sum_acceleration_squared = np.sum(acceleration ** 2)
+        sum_2acceleration_wavelet = np.sum(2 * acceleration * wavelet)
+        sum_wavelet_squared = np.sum(wavelet ** 2)
 
-        const = pi / (2 * GRAVITY) * dt
-        ai_current = const * sum_acc2
-        ai_max = ai_target
+        arias_constant = pi / (2 * GRAVITY) * time_step
+        arias_intensity_current = arias_constant * sum_acceleration_squared
+        arias_intensity_max = arias_intensity_target
 
-        a_q = const * sum_w2
-        b_q = const * sum_2acc_w
-        c_q = ai_current - ai_max
+        quadratic_coeff_a = arias_constant * sum_wavelet_squared
+        quadratic_coeff_b = arias_constant * sum_2acceleration_wavelet
+        quadratic_coeff_c = arias_intensity_current - arias_intensity_max
 
-        if a_q > 0 and (b_q ** 2 - 4 * a_q * c_q) >= 0:
-            disc = sqrt(b_q ** 2 - 4 * a_q * c_q)
-            b1 = (-b_q - disc) / (2 * a_q)
-            b2 = (-b_q + disc) / (2 * a_q)
-            if b1 > b2:
-                b1, b2 = b2, b1
-            if b < b1 or b > b2:
+        if quadratic_coeff_a > 0 and (quadratic_coeff_b ** 2 - 4 * quadratic_coeff_a * quadratic_coeff_c) >= 0:
+            discriminant = sqrt(quadratic_coeff_b ** 2 - 4 * quadratic_coeff_a * quadratic_coeff_c)
+            amplitude_bound_1 = (-quadratic_coeff_b - discriminant) / (2 * quadratic_coeff_a)
+            amplitude_bound_2 = (-quadratic_coeff_b + discriminant) / (2 * quadratic_coeff_a)
+            if amplitude_bound_1 > amplitude_bound_2:
+                amplitude_bound_1, amplitude_bound_2 = amplitude_bound_2, amplitude_bound_1
+            if wavelet_amplitude < amplitude_bound_1 or wavelet_amplitude > amplitude_bound_2:
                 # Clip to the closest feasible bound
-                b = b1 if abs(b - b1) < abs(b - b2) else b2
-                print(f"Iter {it}: Clipped b to {b:.6e} to constrain AI")
+                wavelet_amplitude = amplitude_bound_1 if abs(wavelet_amplitude - amplitude_bound_1) < abs(wavelet_amplitude - amplitude_bound_2) else amplitude_bound_2
+                print(f"Iter {iteration}: Clipped wavelet amplitude to {wavelet_amplitude:.6e} to constrain AI")
 
-        acc += b * w
+        acceleration += wavelet_amplitude * wavelet
 
-    return acc
+    return acceleration
 

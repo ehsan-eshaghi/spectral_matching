@@ -10,13 +10,13 @@ from .constants import NUMERICAL_EPS, TARGET_PERIOD_BAND
 from .solvers import response_spectrum
 
 
-def baseline_correction(acc: np.ndarray, time: np.ndarray, order: int = 2) -> np.ndarray:
+def baseline_correction(acceleration: np.ndarray, time: np.ndarray, order: int = 2) -> np.ndarray:
     """
     Apply baseline correction using polynomial detrending.
 
     Parameters
     ----------
-    acc : np.ndarray
+    acceleration : np.ndarray
         Acceleration time history [m/s^2]
     time : np.ndarray
         Time array [s]
@@ -28,16 +28,16 @@ def baseline_correction(acc: np.ndarray, time: np.ndarray, order: int = 2) -> np
     np.ndarray
         Corrected acceleration [m/s^2]
     """
-    trend = polyfit(time, acc, order)
-    acc_corrected = acc - polyval(trend, time)
-    return acc_corrected
+    trend = polyfit(time, acceleration, order)
+    acceleration_corrected = acceleration - polyval(trend, time)
+    return acceleration_corrected
 
 
 def scale_to_target_band(
-    acc: np.ndarray,
-    dt: float,
+    acceleration: np.ndarray,
+    time_step: float,
     periods: np.ndarray,
-    Se_target: np.ndarray,
+    target_spectrum: np.ndarray,
     band: list = TARGET_PERIOD_BAND,
     damping: float = 0.05
 ) -> Tuple[np.ndarray, float]:
@@ -46,13 +46,13 @@ def scale_to_target_band(
 
     Parameters
     ----------
-    acc : np.ndarray
+    acceleration : np.ndarray
         Acceleration time history [m/s^2]
-    dt : float
+    time_step : float
         Time step [s]
     periods : np.ndarray
         Period array [s]
-    Se_target : np.ndarray
+    target_spectrum : np.ndarray
         Target spectral acceleration [m/s^2]
     band : list, optional
         Target period band [T_min, T_max] (default: TARGET_PERIOD_BAND)
@@ -61,35 +61,35 @@ def scale_to_target_band(
 
     Returns
     -------
-    acc_scaled : np.ndarray
+    acceleration_scaled : np.ndarray
         Scaled acceleration [m/s^2]
     scale_factor : float
         Applied scale factor
     """
-    Sa_orig = response_spectrum(acc, dt, periods, damping=damping)
+    spectrum_original = response_spectrum(acceleration, time_step, periods, damping=damping)
     band_mask = (periods >= band[0]) & (periods <= band[1])
     scale_factor = np.mean(
-        Se_target[band_mask] / (Sa_orig[band_mask] + NUMERICAL_EPS)
+        target_spectrum[band_mask] / (spectrum_original[band_mask] + NUMERICAL_EPS)
     )
-    acc_scaled = acc * scale_factor
-    return acc_scaled, scale_factor
+    acceleration_scaled = acceleration * scale_factor
+    return acceleration_scaled, scale_factor
 
 
 def compute_match_statistics(
-    Sa: np.ndarray,
-    Se_target: np.ndarray,
+    spectrum: np.ndarray,
+    target_spectrum: np.ndarray,
     periods: np.ndarray,
     band: list = TARGET_PERIOD_BAND,
     threshold: float = 0.9
 ) -> float:
     """
-    Compute percentage of periods in band where Sa >= threshold * Se_target.
+    Compute percentage of periods in band where spectrum >= threshold * target_spectrum.
 
     Parameters
     ----------
-    Sa : np.ndarray
+    spectrum : np.ndarray
         Computed spectral acceleration [m/s^2]
-    Se_target : np.ndarray
+    target_spectrum : np.ndarray
         Target spectral acceleration [m/s^2]
     periods : np.ndarray
         Period array [s]
@@ -104,8 +104,8 @@ def compute_match_statistics(
         Percentage of periods meeting the threshold
     """
     band_mask = (periods >= band[0]) & (periods <= band[1])
-    pct = 100.0 * np.sum(
-        Sa[band_mask] >= threshold * Se_target[band_mask]
+    match_percentage = 100.0 * np.sum(
+        spectrum[band_mask] >= threshold * target_spectrum[band_mask]
     ) / np.sum(band_mask)
-    return pct
+    return match_percentage
 
