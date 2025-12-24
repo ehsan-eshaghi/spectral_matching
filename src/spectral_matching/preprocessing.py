@@ -7,7 +7,7 @@ from numpy import polyfit, polyval
 from typing import Tuple
 
 from .constants import NUMERICAL_EPS, TARGET_PERIOD_BAND
-from .solvers import response_spectrum
+from .matching import response_spectrum
 
 
 def baseline_correction(acceleration: np.ndarray, time: np.ndarray, order: int = 2) -> np.ndarray:

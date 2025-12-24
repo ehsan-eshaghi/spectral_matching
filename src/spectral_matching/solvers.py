@@ -1,10 +1,9 @@
 """
-Single-degree-of-freedom (SDOF) system solvers and response spectrum computation.
+Single-degree-of-freedom (SDOF) system solvers.
 """
 
 import numpy as np
 from math import sqrt, pi
-from typing import Tuple
 
 from .constants import DAMPING
 
@@ -14,9 +13,9 @@ def piecewise_exact_history(
     time_step: float,
     natural_frequency: float,
     damping_ratio: float = DAMPING
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> np.ndarray:
     """
-    Piecewise-exact SDOF solver with time histories.
+    Piecewise-exact SDOF solver returning absolute acceleration.
 
     Solves the equation of motion for a SDOF system:
         u'' + 2*damping_ratio*natural_frequency*u' + natural_frequency^2*u = -a_g(t)
@@ -34,12 +33,6 @@ def piecewise_exact_history(
 
     Returns
     -------
-    displacement : np.ndarray
-        Displacement time history [m]
-    velocity : np.ndarray
-        Velocity time history [m/s]
-    relative_acceleration : np.ndarray
-        Relative acceleration time history [m/s^2]
     absolute_acceleration : np.ndarray
         Absolute acceleration time history [m/s^2]
     """
@@ -97,39 +90,4 @@ def piecewise_exact_history(
         relative_acceleration[i + 1] = -2.0 * damping_ratio * natural_frequency * velocity_next - (natural_frequency ** 2) * displacement_next - acceleration[i + 1]
 
     absolute_acceleration = relative_acceleration + acceleration
-    return displacement, velocity, relative_acceleration, absolute_acceleration
-
-
-def response_spectrum(
-    acceleration: np.ndarray,
-    time_step: float,
-    periods: np.ndarray,
-    damping: float = DAMPING
-) -> np.ndarray:
-    """
-    Compute response spectrum (Sa) using the piecewise-exact solver.
-
-    Parameters
-    ----------
-    acceleration : np.ndarray
-        Ground acceleration time history [m/s^2]
-    time_step : float
-        Time step [s]
-    periods : np.ndarray
-        Array of periods [s] for which to compute Sa
-    damping : float, optional
-        Damping ratio (default: DAMPING from constants)
-
-    Returns
-    -------
-    spectrum : np.ndarray
-        Spectral acceleration [m/s^2] for each period
-    """
-    periods = np.asarray(periods, dtype=float)
-    spectrum = np.empty(len(periods), dtype=float)
-    for i, period in enumerate(periods):
-        natural_frequency = 2.0 * pi / period
-        absolute_acceleration = piecewise_exact_history(acceleration, time_step, natural_frequency, damping)[3]
-        spectrum[i] = np.max(np.abs(absolute_acceleration))
-    return spectrum
-
+    return absolute_acceleration
