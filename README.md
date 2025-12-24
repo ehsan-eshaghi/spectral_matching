@@ -30,7 +30,7 @@ spectral_matching/
 ├── src/
 │   ├── spectral_matching/      # Main package
 │   │   ├── __init__.py         # Package initialization
-│   │   ├── constants.py        # Physical and numerical constants
+│   │   ├── constants.py        # Loads constants from config.ini
 │   │   ├── solvers.py          # SDOF solver and response spectrum
 │   │   ├── metrics.py          # Earthquake intensity metrics
 │   │   ├── matching.py         # FFT and GWM matching algorithms
@@ -44,6 +44,7 @@ spectral_matching/
 │   ├── figures/                # Generated plots
 │   └── output/                 # Matched acceleration records
 ├── requirements.txt
+├── config.ini            # Configuration file
 └── README.md
 ```
 
@@ -89,13 +90,16 @@ spectrum = response_spectrum(acc_matched, dt, periods)
 
 ## Configuration
 
-Key parameters can be adjusted in `src/spectral_matching/constants.py`:
+Key parameters can be adjusted in `config.ini` located in the project root directory:
 
-- `DAMPING`: Damping ratio (default: 0.05)
-- `TARGET_PERIOD_BAND`: Target period range [T_min, T_max] in seconds
-- `FFT_ITERS`: Number of FFT matching iterations
-- `GWM_ITERS`: Maximum GWM iterations
-- `PERIOD_MIN`, `PERIOD_MAX`, `NUM_PERIODS`: Period grid parameters
+- **Physical**: `gravity` - Gravitational acceleration constant
+- **Default**: `damping` - Damping ratio (default: 0.05), `target_period_band_min/max` - Target period range
+- **FFT_Matching**: `fft_iters`, `fft_smooth_width`, `fft_ratio_clip_min/max`, `fft_gain_clip_min/max`, `fft_tukey_alpha`
+- **Period_Grid**: `num_periods`, `period_min`, `period_max` - Period grid parameters
+- **GWM**: `gwm_iters`, `gwm_tol`, `gwm_gamma`, `gwm_ai_multiplier` - Greedy Wavelet Matching parameters
+- **Numerical**: `numerical_eps` - Numerical tolerance
+
+The configuration file uses INI format with sections. All values are automatically loaded when the package is imported.
 
 ## Output
 
