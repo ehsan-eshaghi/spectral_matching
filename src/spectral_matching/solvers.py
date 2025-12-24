@@ -8,7 +8,7 @@ from math import sqrt, pi
 from .constants import DAMPING
 
 
-def piecewise_exact_history(
+def piecewise_exact_solver(
     acceleration: np.ndarray,
     time_step: float,
     natural_frequency: float,

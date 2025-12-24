@@ -10,7 +10,7 @@ from .constants import (
     PERIOD_MIN, PERIOD_MAX, NUM_PERIODS,
     FFT_ITERS, GWM_ITERS
 )
-from .solvers import piecewise_exact_history
+from .solvers import piecewise_exact_solver
 from .metrics import arias_intensity, cumulative_absolute_velocity, cumulative_metric
 from .matching import response_spectrum
 from .matching import iterative_fft_match, greedy_wavelet_match
@@ -28,7 +28,7 @@ __all__ = [
     'PERIOD_MIN', 'PERIOD_MAX', 'NUM_PERIODS',
     'FFT_ITERS', 'GWM_ITERS',
     # Solvers
-    'piecewise_exact_history',
+    'piecewise_exact_solver',
     # Metrics
     'arias_intensity', 'cumulative_absolute_velocity', 'cumulative_metric',
     # Matching

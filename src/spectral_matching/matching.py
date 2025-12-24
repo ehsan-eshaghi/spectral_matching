@@ -13,7 +13,7 @@ from .constants import (
     FFT_GAIN_CLIP_MIN, FFT_GAIN_CLIP_MAX, FFT_TUKEY_ALPHA, TARGET_PERIOD_BAND,
     NUMERICAL_EPS, GWM_ITERS, GWM_TOL, GWM_GAMMA, GWM_AI_MULTIPLIER, GRAVITY
 )
-from .solvers import piecewise_exact_history
+from .solvers import piecewise_exact_solver
 from .metrics import arias_intensity
 
 
@@ -149,7 +149,7 @@ def response_spectrum(
         SDOF solver function. Must have signature:
         solver(acceleration, time_step, natural_frequency, damping_ratio) -> np.ndarray
         returning absolute_acceleration.
-        If None, uses piecewise_exact_history from solvers module (default: None)
+        If None, uses piecewise_exact_solver from solvers module (default: None)
 
     Returns
     -------
@@ -157,7 +157,7 @@ def response_spectrum(
         Spectral acceleration [m/s^2] for each period
     """
     if solver is None:
-        solver = piecewise_exact_history
+        solver = piecewise_exact_solver
     
     periods = np.asarray(periods, dtype=float)
     spectrum = np.empty(len(periods), dtype=float)
@@ -209,7 +209,7 @@ def tapered_cosine_wavelet(
     wavelet_temp = np.cos(damped_angular_frequency * time_offset) * np.exp(- (time_offset / gamma) ** 2)
 
     natural_frequency = angular_frequency
-    absolute_acceleration_temp = piecewise_exact_history(wavelet_temp, time_step, natural_frequency, damping_ratio)
+    absolute_acceleration_temp = piecewise_exact_solver(wavelet_temp, time_step, natural_frequency, damping_ratio)
 
     index_wavelet = np.argmax(np.abs(absolute_acceleration_temp))
     time_wavelet = time[index_wavelet]
@@ -219,7 +219,7 @@ def tapered_cosine_wavelet(
     time_offset = time - target_time + time_delta
     wavelet = np.cos(damped_angular_frequency * time_offset) * np.exp(- (time_offset / gamma) ** 2)
 
-    absolute_acceleration = piecewise_exact_history(wavelet, time_step, natural_frequency, damping_ratio)
+    absolute_acceleration = piecewise_exact_solver(wavelet, time_step, natural_frequency, damping_ratio)
     index_max = np.argmax(np.abs(absolute_acceleration))
     max_response_amplitude = np.abs(absolute_acceleration[index_max])
     response_sign = np.sign(absolute_acceleration[index_max])
@@ -296,7 +296,7 @@ def greedy_wavelet_match(
         natural_frequency = 2 * pi / period_max
 
         # Place wavelet near a dominant response of current signal
-        absolute_acceleration = piecewise_exact_history(acceleration, time_step, natural_frequency, damping)
+        absolute_acceleration = piecewise_exact_solver(acceleration, time_step, natural_frequency, damping)
         peak_index = np.argmax(np.abs(absolute_acceleration))
         target_time = time[peak_index]
         response_sign = np.sign(absolute_acceleration[peak_index])
