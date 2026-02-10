@@ -105,7 +105,7 @@ The configuration file uses INI format with sections. All values are automatical
 
 The script generates:
 
-- **Plots** (saved to `figures/`):
+- **Plots** (saved to `src/figures/`):
   - Response spectra comparison
   - Cumulative AI and CAV plots
   - Time history comparisons
@@ -113,6 +113,26 @@ The script generates:
 - **Matched Records** (saved to `output/`):
   - `*_matched_iterative.dat.txt`: FFT-matched record
   - `*_matched_gwm.dat.txt`: GWM-matched record
+
+### Example results (El Centro NS, period band 0.20–1.00 s, 5% damping)
+
+**Response spectra** — target vs scaled vs matched:
+
+| Iterative FFT | Greedy Wavelet Matching |
+|---------------|--------------------------|
+| ![Response spectra – iterative FFT](src/figures/spectra_iterfft_elcentro_NS_band-0.20-1.00s_damp-5pct.png) | ![Response spectra – GWM](src/figures/spectra_gwm_elcentro_NS_band-0.20-1.00s_damp-5pct.png) |
+
+**Time histories** — original/scaled vs matched:
+
+| Iterative FFT | Greedy Wavelet Matching |
+|---------------|--------------------------|
+| ![Time history – iterative FFT](src/figures/time_history_iterfft_elcentro_NS_band-0.20-1.00s_damp-5pct.png) | ![Time history – GWM](src/figures/time_history_gwm_elcentro_NS_band-0.20-1.00s_damp-5pct.png) |
+
+**Cumulative intensity metrics** (iterative FFT run):
+
+| Arias Intensity (AI) | Cumulative Absolute Velocity (CAV) |
+|----------------------|------------------------------------|
+| ![Cumulative AI](src/figures/cumulative_AI_iterfft_elcentro_NS_band-0.20-1.00s_damp-5pct.png) | ![Cumulative CAV](src/figures/cumulative_CAV_iterfft_elcentro_NS_band-0.20-1.00s_damp-5pct.png) |
 
 ## Methods
 
@@ -126,7 +146,7 @@ Adds tapered cosine wavelets to the acceleration record to iteratively improve t
 
 ## Method Comparison
 
-The following table compares the performance of different matching methods on the El Centro NS record (target period band: 0.20-1.00s, damping: 5%):
+The following table compares the performance of different matching methods on the El Centro NS record (target period band: 0.20-1.00s, damping: 5%). The [example results above](#example-results-el-centro-ns-period-band-020100-s-5-damping) show the corresponding spectra, time histories, and cumulative metrics.
 
 | Method | Match % | Arias Intensity (AI) [m/s] | Cumulative Absolute Velocity (CAV) [m/s] |
 |--------|---------|----------------------------|------------------------------------------|
