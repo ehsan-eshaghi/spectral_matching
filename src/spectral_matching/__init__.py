@@ -13,7 +13,7 @@ from .constants import (
 from .solvers import piecewise_exact_solver
 from .metrics import arias_intensity, cumulative_absolute_velocity, cumulative_metric
 from .matching import response_spectrum
-from .matching import iterative_fft_match, greedy_wavelet_match
+from .matching import iterative_fft_match, greedy_wavelet_match, tapered_cosine_wavelet
 from .io import load_acceleration_record, load_target_spectrum, save_acceleration_record
 from .preprocessing import (
     baseline_correction, scale_to_target_band, compute_match_statistics
@@ -34,7 +34,7 @@ __all__ = [
     # Matching
     'response_spectrum',
     # Matching
-    'iterative_fft_match', 'greedy_wavelet_match',
+    'iterative_fft_match', 'greedy_wavelet_match', 'tapered_cosine_wavelet',
     # I/O
     'load_acceleration_record', 'load_target_spectrum', 'save_acceleration_record',
     # Preprocessing

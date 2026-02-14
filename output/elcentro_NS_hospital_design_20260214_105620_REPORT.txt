@@ -1,0 +1,91 @@
+
+=====================================================================================
+SPECTRAL MATCHING TECHNICAL REPORT
+=====================================================================================
+
+Project: 7-Story Hospital, Southern California
+Date: 2026-02-14 10:56:23
+Analyst: [Your Name]
+
+=====================================================================================
+1. INPUT DATA
+=====================================================================================
+
+Earthquake Record:
+  - Event: 1940 El Centro Earthquake
+  - Component: North-South
+  - Magnitude: 6.9
+  - Duration: 53.74 seconds
+  - Original PGA: 3.420 m/s²
+
+Target Spectrum:
+  - Type: Uniform Hazard Spectrum (UHS)
+  - Return Period: 2500 years
+  - Site Class: D (stiff soil)
+  - Target Band: 0.2-1.5 seconds
+  - Damping: 5%
+
+Building Characteristics:
+  - Type: Reinforced concrete hospital
+  - Stories: 7
+  - Fundamental Period: T₁ = 0.7 seconds
+  - Importance Factor: 1.5 (essential facility)
+
+=====================================================================================
+2. PROCESSING STEPS
+=====================================================================================
+
+  1. Baseline Correction: 2nd-order polynomial detrending
+  2. Initial Scaling: Factor = 1.444
+  3. FFT Matching: 30 iterations, smoothing width = 15
+  4. GWM Matching: Max 50 iterations, AI cap = 105%
+
+=====================================================================================
+3. RESULTS SUMMARY
+=====================================================================================
+
+Metric                              Scaled          FFT             GWM
+-------------------------------------------------------------------------------------
+Spectral Match (%)                   69.61         96.34         97.13
+Peak Ground Accel (m/s²)             4.929         3.246         3.728
+Arias Intensity (m/s)               3.7994        3.5695        3.1902
+CAV (m/s)                           20.6550        21.6147        19.5384
+
+Changes from Scaled:
+  FFT Method:
+    - Spectral match improvement: +26.7 percentage points
+    - AI increase: +-6.1%
+    - CAV increase: +4.6%
+
+  GWM Method:
+    - Spectral match improvement: +27.5 percentage points
+    - AI increase: +-16.0%
+    - CAV increase: +-5.4%
+
+=====================================================================================
+4. CODE COMPLIANCE
+=====================================================================================
+
+Requirement: >90% spectral match in target period band
+
+  FFT Method: 96.34% PASS ✓
+  GWM Method: 97.13% PASS ✓
+
+=====================================================================================
+5. RECOMMENDATION
+=====================================================================================
+
+Recommended Method: GWM
+
+=====================================================================================
+6. OUTPUT FILES
+=====================================================================================
+
+  1. elcentro_NS_hospital_design_20260214_105620_FFT.dat.txt
+  2. elcentro_NS_hospital_design_20260214_105620_GWM.dat.txt
+
+Both records are ready for use in nonlinear time-history analysis.
+
+=====================================================================================
+END OF REPORT
+=====================================================================================
